@@ -72,6 +72,11 @@ function(req, res) {
   });
 });
 
+app.get('/logout', function(req, res){
+  req.session.loggedIn = false;
+  res.redirect(302, '/login');
+})
+
 app.post('/links',
 function(req, res) {
   var uri = req.body.url;
@@ -121,9 +126,12 @@ app.post('/login', function (req, res) {
       var itemPass = model.get('password');
       bcrypt.compare(password,itemPass,function(err, res){
         if (res ){
-          req.session.loggedIn = true;
-          req.session.username = username;
-          response.redirect(302, '/index');
+          req.session.regenerate(function(err){
+
+            req.session.loggedIn = true;
+            req.session.username = username;
+            response.redirect(302, '/index');
+          });
         }
       });
     } else {
