@@ -1,4 +1,6 @@
 window.Shortly = Backbone.View.extend({
+  apiKey: null,
+
   template: Templates['layout'],
 
   events: {

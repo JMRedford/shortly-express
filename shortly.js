@@ -2,6 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var session = require('express-session');
+var uuid = require('uuid');
 
 
 var db = require('./app/config');
@@ -13,6 +15,9 @@ var Click = require('./app/models/click');
 
 var app = express();
 
+var passArr = [];
+
+
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 app.use(partials());
@@ -22,25 +27,46 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+app.use(session({
+  genid: uuid.v1,
+  secret: 'oregano',
+  saveUninitialized: false,
+  resave: false
+}));
 
-app.get('/', 
+
+app.get('/', function(req, res) {
+  //check for API key
+  //if no key, redirect to login page.
+  if (req.session.loggedIn) {
+    res.render('index')
+  } else {
+    res.redirect(302, '/login')
+  }
+
+});
+
+app.get('/login', function (req, res) {
+  res.render('login');
+});
+
+app.get('/signup', function (req, res) {
+  res.render('signup');
+});
+
+app.get('/create',
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
-function(req, res) {
-  res.render('index');
-});
-
-app.get('/links', 
+app.get('/links',
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   });
 });
 
-app.post('/links', 
+app.post('/links',
 function(req, res) {
   var uri = req.body.url;
 
@@ -78,7 +104,32 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
+app.post('/login', function (req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+  passArr = Users.pluck('password');
 
+  // compare with hashes in database
+  // if match then login the user
+
+})
+
+app.post('/signup', function (req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+  var request = req;
+
+  var user = new User({password:password, username: username}).save()
+  .then(function (model) {
+    request.session.loggedIn = true;
+    request.session.username = username;
+    res.redirect(302, '/index');
+    console.log(model);
+    Users.push(model);
+  });
+
+
+})
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
