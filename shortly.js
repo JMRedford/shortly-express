@@ -4,7 +4,7 @@ var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
 var uuid = require('uuid');
-
+var bcrypt = require('bcrypt-nodejs');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -15,8 +15,14 @@ var Click = require('./app/models/click');
 
 var app = express();
 
-var passArr = [];
+var passwordArr = [];
 
+hashIt = function(thingToHash, endCallback){
+  bcrypt.hash(thingToHash,null,null,function(err,hash){
+    if(err) console.log(err);
+    endCallback(hash);
+  });
+};
 
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
@@ -107,10 +113,23 @@ function(req, res) {
 app.post('/login', function (req, res) {
   var username = req.body.username;
   var password = req.body.password;
-  passArr = Users.pluck('password');
+  var response = res;
 
-  // compare with hashes in database
-  // if match then login the user
+
+  new User().fetch({username:username}).then(function(model){
+    if (model){
+      var itemPass = model.get('password');
+      bcrypt.compare(password,itemPass,function(err, res){
+        if (res ){
+          req.session.loggedIn = true;
+          req.session.username = username;
+          response.redirect(302, '/index');
+        }
+      });
+    } else {
+      response.redirect(302, '/login');
+    }
+  });
 
 })
 
@@ -119,16 +138,15 @@ app.post('/signup', function (req, res) {
   var password = req.body.password;
   var request = req;
 
-  var user = new User({password:password, username: username}).save()
-  .then(function (model) {
-    request.session.loggedIn = true;
-    request.session.username = username;
-    res.redirect(302, '/index');
-    console.log(model);
-    Users.push(model);
+  var hashPass = hashIt(password, function(theHash){
+    var user = new User({password:theHash, username: username}).save()
+    .then(function (model) {
+      request.session.loggedIn = true;
+      request.session.username = username;
+      res.redirect(302, '/index');
+      Users.push(model);
+    });
   });
-
-
 })
 
 /************************************************************/
